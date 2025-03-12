@@ -1,0 +1,16 @@
+name: checkthat-swd-a
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python-dotenv
+  - openai
+  - ollama
+  - polars
+  - langchain
+  - langchain-openai
+  - psutil
+  - scikit-learn
+  - pip:
+    - langchain-ollama
+    - torch
