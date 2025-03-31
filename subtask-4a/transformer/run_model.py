@@ -4,6 +4,9 @@ import polars as pl
 import ast
 from sklearn.metrics import f1_score, classification_report
 
+def macro_f1_fn(preds: torch.Tensor, labels: torch.Tensor) -> float:
+    preds = (torch.sigmoid(preds) > 0.5).int()
+    return f1_score(labels.cpu().numpy(), preds.cpu().numpy(), average="macro")
 
 def main():
     # 1. Define your model path directory (no '.pth' at the end if it's a folder)
@@ -46,8 +49,8 @@ def main():
             test_tokens["input_ids"], 
             test_tokens["attention_mask"]
         )
-        probs = torch.sigmoid(logits)                      
-        preds_tensor = (probs > 0.5).int()     
+        probs = torch.sigmoid(logits)
+        preds_tensor = (probs > 0.5).int()
 
     '''                
     # Predicted class indices
@@ -81,7 +84,8 @@ def main():
     '''
 
     # 8. Compute macro F1 score for multi-label classification 
-    f1 = f1_score(test_labels_tensor, preds_tensor, average="macro")
+    #f1 = f1_score(test_labels_tensor, preds_tensor, average="macro")
+    f1 = macro_f1_fn(logits, test_labels_tensor)
     print(f"Macro F1 Score: {f1:.3f}")
 
     # 9. Optional: Print classification report
@@ -99,5 +103,5 @@ def main():
         print(f"Actual:    {true_labels}")
         print("-" * 50)
 
-if __name__ == "__main__c ":
+if __name__ == "__main__":
     main()
