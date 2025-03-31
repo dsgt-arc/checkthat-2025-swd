@@ -1,0 +1,30 @@
+data:
+  dir: "C:/Users/leoch/Downloads/CLEF/4a/"
+  train_en: "ct_train_data.tsv"
+  train_en_embedding: "train_embed"
+  fine_tuned_model_path: "fine_tuned_models/"
+  val_en: null
+
+train:
+  train_test_split: 0.9
+  batch_size: 40
+  seed: 42
+  epochs: 8
+  learning_rate: 0.00002
+  eps: 0.00000001
+  early_stopping_patience: 3
+
+encoder_model: 
+  name: "microsoft/deberta-v3-base"
+  add_special_tokens: true
+  padding: "max_length"
+  truncation: true
+  return_attention_mask: true
+  return_tensors: "pt"
+  pad_to_max_length: true
+  max_length: 128
+  batch_size: 20
+  hidden_dim: 768
+  freeze_encoder: false
+  dropout_ratio: 0.1
+  mlp_dim: 256
