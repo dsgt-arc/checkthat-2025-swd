@@ -1,0 +1,13 @@
+EXPERIMENT: 02_data_augmentation
+
+INPUT PARAMETERS:
+path_cord_data: subtask4b_collection_data.pkl
+path_tweet_data: data_augumentation/subtask4b_query_tweets_dev_formal.tsv
+output_dir: results
+mrr_k: [1, 5, 10]
+
+EXPERIMENT 02_data_augmentation BASELINE RESULTS:
+{1: np.float64(0.43357142857142855), 5: np.float64(0.49147619047619046), 10: np.float64(0.4971706349206349)}
+
+EXPERIMENT 02_data_augmentation RERANK RESULTS:
+{1: np.float64(0.4642857142857143), 5: np.float64(0.5183452380952381), 10: np.float64(0.5253996598639457)}

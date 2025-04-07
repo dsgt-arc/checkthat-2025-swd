@@ -1,0 +1,13 @@
+EXPERIMENT: 01_mvp
+
+INPUT PARAMETERS:
+path_cord_data: subtask4b_collection_data.pkl
+path_tweet_data: subtask4b_query_tweets.tsv
+output_dir: results
+mrr_k: [1, 5, 10]
+
+EXPERIMENT 01_mvp BASELINE RESULTS:
+{1: np.float64(0.5075422718024276), 5: np.float64(0.5507916462031385), 10: np.float64(0.5558663506095626)}
+
+EXPERIMENT 01_mvp RERANK RESULTS:
+{1: np.float64(0.536729109661124), 5: np.float64(0.5875897471877265), 10: np.float64(0.5926083787428768)}
