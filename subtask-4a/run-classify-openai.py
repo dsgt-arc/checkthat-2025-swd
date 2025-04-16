@@ -7,13 +7,33 @@ from pathlib import Path
 
 import polars as pl
 from langchain_core.language_models.llms import BaseLLM
-from langchain_core.prompts import ChatPromptTemplate, FewShotPromptTemplate
-from langchain_core.runnables import RunnableSequence
+from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, FewShotPromptTemplate
+from langchain_core.runnables import RunnableSequence, RunnableLambda
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 from detection.helper.data_store import DataStore
 from detection.helper.logger import set_up_log
 from detection.helper.run_config import RunConfig
+from dotenv import load_dotenv
+
+# loading variables from .env file
+load_dotenv()
+
+def log_messages(input):
+    # Handle the tuple structure safely
+    messages = input[0] if isinstance(input, tuple) else input
+
+    print("=== Prompt sent to LLM ===")
+    for msg in messages:
+        if hasattr(msg, "type") and hasattr(msg, "content"):
+            print(f"{msg.type.capitalize()}: {msg.content}")
+        elif isinstance(msg, dict):
+            print(f"Dict message: {msg}")
+        elif isinstance(msg, tuple) and len(msg) == 2:
+            print(f"{msg[0].capitalize()}: {msg[1]}")
+        else:
+            print(f"Raw message: {msg}")
+    return input
 
 
 def extract_answer_list(llm_output: str):
@@ -40,13 +60,40 @@ def prepare_chain(model: BaseLLM, few_shot_examples: str = None) -> RunnableSequ
     """
     system_msg = RunConfig.llm["prompt"]["system"]
     user_template = RunConfig.llm["prompt"]["user"]
+
     # Combine into a single prompt string (alternatively, you could use a multi-message prompt)
     template = f"System: {system_msg}\nUser: {user_template}"
-    if few_shot_examples:
-        prompt = FewShotPromptTemplate.from_template(template, few_shot_examples)
+    if not few_shot_examples.is_empty():
+        assistance = RunConfig.llm["prompt"]["assistance"]
+
+        # Convert to list of dicts
+        example_dicts = example_dicts = [
+            {"tweet": row["text"], "label": row["labels"]}
+            for row in few_shot_examples.to_dicts()
+        ]
+
+        # Define how each few-shot example should be formatted
+        example_prompt = PromptTemplate(
+            input_variables=["tweet", "label"],
+            template="Tweet: {tweet}\nLabel: {label}"
+        )
+
+        # FewShotPromptTemplate requires prefix + suffix + example_prompt
+        prompt = FewShotPromptTemplate(
+            examples=example_dicts,
+            example_prompt=example_prompt,
+            prefix=f"{system_msg}\n{assistance}",
+            suffix="Given the above examples, now classify the following tweet by filling in the label.\nTweet: {tweet}\nLabel:",
+            input_variables=["tweet"]
+        )
     else:
         prompt = ChatPromptTemplate.from_template(template)
-    chain = prompt | model
+    
+    if RunConfig.logging["debug"]:
+        chain = prompt | RunnableLambda(log_messages) | model
+    else:
+        chain = prompt | model
+    
     return chain
 
 
@@ -175,13 +222,12 @@ def main():
 
             if RunConfig.llm["few_shot"]:
                 logging.info("Few-shot learning enabled.")
-                raise NotImplementedError("Few-shot learning is not yet implemented.")
                 if RunConfig.llm["prompt"]["assistance"] is None:
                     logging.error("Assistance prompt is required for few-shot learning.")
                     raise ValueError("Assistance prompt is required for few-shot learning.")
 
                 # Given seed randomly pick 2 examples from the training data for few-shot learning
-                few_shot_examples = train_data.sample(n=2, random_state=RunConfig.llm["few_shot_seed"])
+                few_shot_examples = train_data.sample(n=2, seed=RunConfig.llm["few_shot_seed"])
             else:
                 few_shot_examples = None
 

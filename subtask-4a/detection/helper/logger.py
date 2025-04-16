@@ -40,7 +40,7 @@ class ExtraInfoFilter(logging.Filter):
         return True
 
 
-def set_up_log(log_level: int = None, suffix: str = None) -> None:
+def set_up_log(log_level: int = None, suffix: str = None, add_system_info: bool = False) -> None:
     """Set up logger
     Args:
         log_level (int, optional): log level. Defaults to None.
@@ -61,7 +61,11 @@ def set_up_log(log_level: int = None, suffix: str = None) -> None:
     log_file_path = Path(f"log/{suffix}.log")
     if not log_file_path.parent.exists():
         log_file_path.parent.mkdir()
-    log_format = "%(asctime)s | %(levelname)s | %(module)s |  %(extra_info)s | %(message)s"
+    
+    if add_system_info:
+        log_format = "%(asctime)s | %(levelname)s | %(module)s |  %(extra_info)s | %(message)s"
+    else:
+        log_format = "%(asctime)s | %(levelname)s | %(module)s | %(message)s"
 
     if log_level is None:
         log_level = 20

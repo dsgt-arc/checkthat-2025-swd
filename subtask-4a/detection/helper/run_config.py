@@ -8,6 +8,7 @@ class RunConfig:
     data = {}
     llm = {}
     train = {}
+    logging = {}
 
     @classmethod
     def load_config(cls, path: Path = Path("config/run_config.yml")) -> None:
@@ -21,3 +22,4 @@ class RunConfig:
         cls.data = config_data.get("data")
         cls.llm = config_data.get("llm")
         cls.train = config_data.get("train")
+        cls.logging = config_data.get("logging")
