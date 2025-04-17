@@ -1,7 +1,11 @@
+logging:
+  debug: false
+  
 data:
   dir: "data/"
-  train: "ct_train_data.tsv"
-  train_pred: "train_predictions.tsv"
+  train: "ct_train.tsv"
+  test: "ct_dev.tsv"
+  train_pred: "fewShot_semantic_selector_dev_predictions.tsv"
 
 llm:
   save_every: 20
@@ -16,11 +20,11 @@ llm:
     presence_penalty: 0.0,
     max_retries: 3,
   }
-  few_shot: false
+  few_shot: true
   few_shot_seed: 42
   prompt: {
     system: You are a helpful assistant that classifies tweets into 0 or more categories.,
-    assistance: null,
+    assistance: "The categories are: 1. Contains a scientific claim. 2. Refers to a scientific study/publication. 3. Mentions scientific entities (e.g., a university or scientist). 4. None of the above. You need to provide all applicable category numbers as a one-hot encoded list of size 3 (e.g., [1.0, 1.0, 0], [1.0, 0, 0], [0.0, 0.0, 1.0]). If the tweet does not fit into any category, return [0.0, 0.0, 0.0]. You must always return a list of 3 elements as such. Here are some example tweets along with their classifications:",
     user: "Classify the following tweet into one or more of the following categories: 1. Contains a scientific claim. 2. Refers to a scientific study/publication. 3. Mentions scientific entities (e.g., a university or scientist). 4. None of the above. Provide all applicable category numbers as a one-hot encoded list of size 3 (e.g., [1.0, 1.0, 0], [1.0, 0, 0], [0.0, 0.0, 1.0]). If the tweet does not fit into any category, return [0.0, 0.0, 0.0]. You must always return a list of 3 elements as such. Tweet: {tweet}."
   }
   round_results: 4

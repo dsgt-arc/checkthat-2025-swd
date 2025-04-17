@@ -14,3 +14,5 @@ dependencies:
   - pip:
     - langchain-ollama
     - torch
+    - langchain-community
+    - faiss-cpu

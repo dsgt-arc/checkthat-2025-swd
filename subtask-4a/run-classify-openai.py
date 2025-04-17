@@ -1,5 +1,6 @@
 import argparse
 import importlib
+import json
 import logging
 import os
 import re
@@ -9,6 +10,9 @@ import polars as pl
 from langchain_core.language_models.llms import BaseLLM
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, FewShotPromptTemplate
 from langchain_core.runnables import RunnableSequence, RunnableLambda
+from langchain_community.vectorstores import FAISS
+from langchain_core.example_selectors import SemanticSimilarityExampleSelector
+from langchain_openai import OpenAIEmbeddings
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 from detection.helper.data_store import DataStore
@@ -53,7 +57,7 @@ def init_args_parser() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def prepare_chain(model: BaseLLM, few_shot_examples: str = None) -> RunnableSequence:
+def prepare_chain(model: BaseLLM, train_data = None, is_few_shot: bool = False) -> RunnableSequence:
     """
     Prepares a chain that uses the prompts from the configuration.
     The user prompt template appends the tweet text via the variable {tweet}.
@@ -63,9 +67,10 @@ def prepare_chain(model: BaseLLM, few_shot_examples: str = None) -> RunnableSequ
 
     # Combine into a single prompt string (alternatively, you could use a multi-message prompt)
     template = f"System: {system_msg}\nUser: {user_template}"
-    if not few_shot_examples.is_empty():
+    if is_few_shot:
         assistance = RunConfig.llm["prompt"]["assistance"]
 
+        '''
         # Convert to list of dicts
         example_dicts = example_dicts = [
             {"tweet": row["text"], "label": row["labels"]}
@@ -81,6 +86,36 @@ def prepare_chain(model: BaseLLM, few_shot_examples: str = None) -> RunnableSequ
         # FewShotPromptTemplate requires prefix + suffix + example_prompt
         prompt = FewShotPromptTemplate(
             examples=example_dicts,
+            example_prompt=example_prompt,
+            prefix=f"{system_msg}\n{assistance}",
+            suffix="Given the above examples, now classify the following tweet by filling in the label.\nTweet: {tweet}\nLabel:",
+            input_variables=["tweet"]
+        )
+        '''
+
+        example_prompt = PromptTemplate(
+            input_variables=["tweet", "label"],
+            template="Tweet: {tweet}\nLabel: {label}"
+        )
+
+        example_dicts = [
+            {"tweet": row["text"], "label": str(row["labels"])}
+            for row in train_data.to_dicts()
+        ]
+
+        #filtered_examples = [
+        #    ex for ex in example_dicts if ex["tweet"].strip() != tweet.strip()
+        #]
+
+        example_selector = SemanticSimilarityExampleSelector.from_examples(
+            examples=example_dicts,
+            embeddings=OpenAIEmbeddings(),
+            k=5,
+            vectorstore_cls=FAISS
+        )
+
+        prompt = FewShotPromptTemplate(
+            example_selector=example_selector,
             example_prompt=example_prompt,
             prefix=f"{system_msg}\n{assistance}",
             suffix="Given the above examples, now classify the following tweet by filling in the label.\nTweet: {tweet}\nLabel:",
@@ -163,6 +198,12 @@ def set_up_llm(api_key: str = None) -> BaseLLM:
 
 
 def resolve_nesting_in_df(df: pl.DataFrame, label_col_names: list[str], pred_col_names: list[str]) -> pl.DataFrame:
+    # Fix stringified lists (if any)
+    df = df.with_columns([
+        pl.col("labels").map_elements(lambda x: json.loads(x) if isinstance(x, str) else x),
+        pl.col("predictions").map_elements(lambda x: json.loads(x) if isinstance(x, str) else x),
+    ])
+
     df = df.with_columns(
         pl.col("labels").list.to_struct(fields=label_col_names),
         pl.col("predictions").list.to_struct(fields=pred_col_names),
@@ -205,6 +246,9 @@ def main():
         ds.read_csv_data(RunConfig.data["train"], separator="\t", schema_overrides={"labels": pl.String()})
         train_data = ds.get_data()
 
+        ds.read_csv_data(RunConfig.data["test"], separator="\t", schema_overrides={"labels": pl.String()})
+        test_data = ds.get_data()
+
         output_path = Path(RunConfig.data["dir"]) / Path(RunConfig.data["train_pred"])
         if check_data_availability(output_path) and not args.force:
             # Load the existing results
@@ -214,6 +258,9 @@ def main():
 
         else:
             logging.info("Data not processed yet. Starting prediction.")
+
+            # Initialize the LLM
+            model = set_up_llm(api_key=key)
 
             # Parse the string label into a list of floats
             train_data = train_data.with_columns(
@@ -226,34 +273,27 @@ def main():
                     logging.error("Assistance prompt is required for few-shot learning.")
                     raise ValueError("Assistance prompt is required for few-shot learning.")
 
-                # Given seed randomly pick 2 examples from the training data for few-shot learning
-                few_shot_examples = train_data.sample(n=2, seed=RunConfig.llm["few_shot_seed"])
+                chain = prepare_chain(model, train_data, True)
             else:
-                few_shot_examples = None
-
-            # Initialize the LLM
-            model = set_up_llm(api_key=key)
-
-            # Prepare the chain
-            chain = prepare_chain(model, few_shot_examples)
+                chain = prepare_chain(model, train_data, False)
 
             # Predictions with saving intermediate results every RunConfig.llm["save_every"] rows
-            predictions = list(None for _ in range(len(train_data)))
+            predictions = list(None for _ in range(len(test_data)))
 
-            for i, row in enumerate(train_data.iter_rows(named=True)):
+            for i, row in enumerate(test_data.iter_rows(named=True)):
                 tweet_text = row["text"]
                 category = classify_tweet(chain, tweet_text)
                 predictions[i] = category
 
                 if (i + 1) % RunConfig.llm["save_every"] == 0 and i > 0:
-                    train_data = train_data.with_columns(pl.Series("predictions", predictions))
-                    unnested_results = resolve_nesting_in_df(train_data.clone(), field_names_label, field_names_pred)
+                    test_data = test_data.with_columns(pl.Series("predictions", predictions))
+                    unnested_results = resolve_nesting_in_df(test_data.clone(), field_names_label, field_names_pred)
                     unnested_results.write_csv(output_path, separator="\t")
                     logging.info(f"Saved {i + 1} processed rows.")
 
             # Save final results
-            train_data = train_data.with_columns(pl.Series("predictions", predictions))
-            unnested_results = resolve_nesting_in_df(train_data, field_names_label, field_names_pred)
+            test_data = test_data.with_columns(pl.Series("predictions", predictions))
+            unnested_results = resolve_nesting_in_df(test_data, field_names_label, field_names_pred)
             output_path = Path(RunConfig.data["dir"]) / Path(RunConfig.data["train_pred"])
             logging.info(f"Writing predictions to {output_path}")
             unnested_results.write_csv(output_path, separator="\t")
