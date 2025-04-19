@@ -1,0 +1,15 @@
+
+name: checkthat-retrieval
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - numpy
+  - pandas
+  - scikit-learn
+  - tqdm
+  - pip
+  - pip:
+    - rank_bm25
+    - sentence-transformers

@@ -1,6 +1,9 @@
 .env
+.pkl
+.tsv
 .DS_Store
 __pycache__/
 log/
 .ipynb_checkpoints/
+data_augmentation/
 fine_tuned_models/
