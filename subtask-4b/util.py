@@ -1,24 +1,26 @@
-from sentence_transformers import SentenceTransformer
-from sentence_transformers import CrossEncoder
+import os
 
-class Rerank:
-    def __init__(self, model_name="cross-encoder/ms-marco-MiniLM-L-6-v2"):
-        self.model_name = model_name
-        self.cross_encoder = CrossEncoder(self.model_name)
+# Evaluate retrieved candidates using MRR@k
+def get_performance_mrr(data, col_gold, col_pred, list_k = [1, 5, 10]):
+  d_performance = {}
+  for k in list_k:
+      data["in_topx"] = data.apply(lambda x: (1/([i for i in x[col_pred][:k]].index(x[col_gold]) + 1) if x[col_gold] in [i for i in x[col_pred][:k]] else 0), axis=1)
+      d_performance[k] = data["in_topx"].mean()
+        
+  return d_performance
 
-    def rerank_with_crossencoder(self, row, k=10):
-        tweet = row['tweet_text']
-        title_abstracts = row['title_abstract']
-        model_inputs = [(tweet, f"{paper_data['title']} {paper_data['abstract']}")
-                        for paper_id, paper_data in title_abstracts.items()]
-        results = self.cross_encoder.rank(query=tweet, 
-                                    documents=[f"{paper_data['title']} {paper_data['abstract']}"
-                                                    for paper_id, paper_data in title_abstracts.items()],
-                                                    top_k=k, 
-                                                    show_progress_bar = True
-                                                    )
-        ranked_document_indices = [result['corpus_id'] for result in results]
-        ranked_paper_ids = [list(title_abstracts.keys())[index] for 
-                            index in ranked_document_indices]
+def retrieve_paper(df_collection, paper_ids):
+  paper_dict = {}
+  for id in paper_ids:
+    paper_data = df_collection[df_collection['cord_uid'] == id]
+    title = paper_data.iloc[0]['title']
+    abstract = paper_data.iloc[0]['abstract']
+    paper_dict[id] = {'title': title, 'abstract': abstract}
+    
+  return paper_dict
 
-        return ranked_paper_ids
+def output_file(experiment_name, output_dir="results"):
+    os.makedirs(output_dir, exist_ok=True)
+    f = open("{}/subtask4b_{}.txt".format(output_dir, experiment_name), "w")
+    
+    return f
