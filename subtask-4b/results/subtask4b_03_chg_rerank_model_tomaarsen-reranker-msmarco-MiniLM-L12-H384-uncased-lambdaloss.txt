@@ -1,0 +1,15 @@
+EXPERIMENT: 03_chg_rerank_model
+
+INPUT PARAMETERS:
+path_cord_data: subtask4b_collection_data.pkl
+path_tweet_data: data_augumentation/subtask4b_query_tweets_dev.tsv
+output_dir: results
+rerank_model: tomaarsen/reranker-msmarco-MiniLM-L12-H384-uncased-lambdaloss
+rerank_k: 10
+mrr_k: [1, 5, 10]
+
+EXPERIMENT 03_chg_rerank_model BASELINE (BM25) RESULTS:
+{1: np.float64(0.5821428571428572), 5: np.float64(0.6299642857142858), 10: np.float64(0.6358265306122449)}
+
+EXPERIMENT 03_chg_rerank_model RERANK RESULTS:
+{1: np.float64(0.3657142857142857), 5: np.float64(0.4193571428571428), 10: np.float64(0.4306147959183673)}
