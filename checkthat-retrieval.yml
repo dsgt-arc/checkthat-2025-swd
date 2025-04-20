@@ -3,8 +3,10 @@ name: checkthat-retrieval
 channels:
   - conda-forge
   - defaults
+  - pytorch
 dependencies:
   - python
+  - keyring
   - numpy
   - pandas
   - scikit-learn
@@ -13,3 +15,8 @@ dependencies:
   - pip:
     - rank_bm25
     - sentence-transformers
+    - --extra-index-url https://download.pytorch.org/whl/cu118
+    - torch==2.6.0+cu118
+    - torchaudio==2.6.0+cu118
+    - torchvision==0.21.0+cu118
+    
