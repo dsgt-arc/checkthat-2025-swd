@@ -2,41 +2,41 @@ import argparse
 import numpy as np
 import pandas as pd
 import time
+import torch
 
-from bm25 import BM25
+from bm25_pytorch import BM25_Pytorch
 from rerank import Rerank
 from util import get_performance_mrr, retrieve_paper, output_file
 
 EXPERIMENT = "03_chg_rerank_model"
 
 
-def baseline(df_collection, df_query, f, mrr_k = [1, 5, 10]):
-  # Create the BM25 corpus
+def retrieve(df_collection, df_query, f, device=None, mrr_k = [1, 5, 10]):
+  # Retrieval - Create the BM25 corpus (baseline)
   corpus = df_collection[:][['title', 'abstract']].apply(lambda x: f"{x['title']} {x['abstract']}", axis=1).tolist()
   cord_uids = df_collection[:]['cord_uid'].tolist()
+  queries = df_query['tweet_text'].tolist()
 
-  bm25 = BM25(corpus=corpus, cord_uids=cord_uids)
-
+  bm25 = BM25_Pytorch(corpus=corpus, cord_uids=cord_uids, queries=queries, device=device)
+    
   # Retrieve topk candidates using the BM25 model
   df_query['bm25_topk'] = df_query['tweet_text'].apply(lambda x: bm25.get_top_cord_uids(x))
 
   results = get_performance_mrr(df_query, 
                                 col_gold='cord_uid', 
                                 col_pred='bm25_topk', 
-                                list_k = mrr_k,
-                                title='Baseline - BM25')
+                                list_k = mrr_k)
   
-  f.write("EXPERIMENT {} BASELINE RESULTS:\n".format(EXPERIMENT))
+  f.write("EXPERIMENT {} BASELINE (BM25) RESULTS:\n".format(EXPERIMENT))
   f.write(str(results))
   f.write("\n\n")
   
   return df_query
   
   
-def rerank(df_collection, df_query, f, rerank_model, rerank_k, mrr_k = [1, 5, 10]):
-  rerank = Rerank(model_name=rerank_model)
-  
-  # BM25 for Retrieval and SBert for Rerank
+def rerank(df_collection, df_query, f, rerank_model, rerank_k, device=None, mrr_k = [1, 5, 10]):
+  rerank = Rerank(model_name=rerank_model, device=device)
+      
   df_query['title_abstract'] = df_query['bm25_topk'].apply(lambda row: retrieve_paper(df_collection=df_collection, paper_ids=row))
   df_query['bm25_cross_encoder_topk'] = df_query.apply(lambda row: rerank.rerank_with_crossencoder(row, k=rerank_k), axis=1)
 
@@ -44,8 +44,7 @@ def rerank(df_collection, df_query, f, rerank_model, rerank_k, mrr_k = [1, 5, 10
   results = get_performance_mrr(df_query, 
                                 col_gold='cord_uid', 
                                 col_pred='bm25_cross_encoder_topk', 
-                                list_k = mrr_k,
-                                title = 'MVP - BM25 + Cross-Encoder')
+                                list_k = mrr_k)
   
   f.write("EXPERIMENT {} RERANK RESULTS:\n".format(EXPERIMENT))
   f.write(str(results))
@@ -58,28 +57,33 @@ def main(path_collection_data, path_query_data, output_dir, rerank_model, rerank
   
   df_collection = pd.read_pickle(path_collection_data)
   df_query = pd.read_csv(path_query_data, sep = '\t')
+  
+  device = torch.device("cuda" if torch.cuda.is_available() else None)
     
   try:  
-    results_file = "{}_{}".format(EXPERIMENT, rerank_model)
+    results_filename = "{}_{}".format(EXPERIMENT, rerank_model.replace("/", '-'))
+    results_file = output_file(experiment_name=results_filename, output_dir=output_dir)
     results_file.write("EXPERIMENT: {}\n\n".format(EXPERIMENT))
     results_file.write("INPUT PARAMETERS:\n")
     results_file.write("path_cord_data: {}\n".format(path_collection_data))
     results_file.write("path_tweet_data: {}\n".format(path_query_data))
     results_file.write("output_dir: {}\n".format(output_dir))
-    results_file.write("rerank_model: {}\n\n".format(rerank_model))
-    results_file.write("rerank_k: {}\n\n".format(rerank_k))
+    results_file.write("rerank_model: {}\n".format(rerank_model))
+    results_file.write("rerank_k: {}\n".format(rerank_k))
     results_file.write("mrr_k: {}\n\n".format(list_mrr_k))
     
-    ## Baseline
-    df_query = baseline(df_collection=df_collection, 
+    ## Retrieve
+    df_query = retrieve(df_collection=df_collection, 
                         df_query=df_query, 
                         f=results_file,
+                        device=device,
                         mrr_k = list_mrr_k) 
 
     ## Rerank
     df_query = rerank(df_collection=df_collection, 
                       df_query=df_query, 
                       f=results_file,
+                      device=device,
                       rerank_model=rerank_model,
                       rerank_k=rerank_k,
                       mrr_k =list_mrr_k)
