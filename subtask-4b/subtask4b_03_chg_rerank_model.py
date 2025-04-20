@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import time
 import torch
-
 from bm25_pytorch import BM25_Pytorch
 from rerank import Rerank
 from util import get_performance_mrr, retrieve_paper, output_file, preprocess
@@ -60,6 +59,7 @@ def main(path_collection_data, path_query_data, output_dir, rerank_model, rerank
   df_query = preprocess(df=df_query)
   
   device = torch.device("cuda" if torch.cuda.is_available() else None)
+  torch._dynamo.config.suppress_errors = True
     
   try:  
     results_filename = "{}_{}".format(EXPERIMENT, rerank_model.replace("/", '-'))

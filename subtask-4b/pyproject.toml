@@ -1,0 +1,40 @@
+[project]
+name = "subtask-4b"
+version = "0.1.1"
+authors = [{ name = "Jeanette Schofield", email = "jschofield8@gatech.edu" }]
+description = "DS@GT CheckThat SWD 2025 helper package"
+requires-python = ">=3.9"
+dependencies = [
+    "keyring",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "tqdm",
+    "rank_bm25",
+    "bm25_pt",
+    "xformers>=0.0.29.post3",
+    "sentence-transformers>=4.1.0",
+    "triton>=3.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pip",
+    "jupyterlab",
+    "ruff",
+    "pre-commit",
+    "pytest",
+]
+
+[project.urls]
+Homepage = "https://github.com/dsgt-kaggle-clef/checkthat-2025-swd"
+Issues = "https://github.com/dsgt-kaggle-clef/checkthat-2025-swd/issues"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = []
+namespaces = false

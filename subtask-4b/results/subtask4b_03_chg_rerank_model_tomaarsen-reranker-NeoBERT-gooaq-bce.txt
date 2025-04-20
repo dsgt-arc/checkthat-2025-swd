@@ -1,0 +1,15 @@
+EXPERIMENT: 03_chg_rerank_model
+
+INPUT PARAMETERS:
+path_cord_data: subtask4b_collection_data.pkl
+path_tweet_data: data_augumentation/subtask4b_query_tweets_dev.tsv
+output_dir: results
+rerank_model: tomaarsen/reranker-NeoBERT-gooaq-bce
+rerank_k: 10
+mrr_k: [1, 5, 10]
+
+EXPERIMENT 03_chg_rerank_model BASELINE (BM25) RESULTS:
+{1: np.float64(0.5821428571428572), 5: np.float64(0.6299642857142858), 10: np.float64(0.6358265306122449)}
+
+EXPERIMENT 03_chg_rerank_model RERANK RESULTS:
+{1: np.float64(0.03214285714285714), 5: np.float64(0.05625), 10: np.float64(0.06814625850340135)}
