@@ -1,5 +1,6 @@
 import numpy as np
 from bm25_pt import BM25
+from torch import Tensor
 
 class BM25_Pytorch:
     def __init__(self, corpus, cord_uids, device=None):
@@ -9,7 +10,7 @@ class BM25_Pytorch:
         self.bm25.index(self.corpus)
         
     def get_top_cord_uids(self, query, k=100):
-        doc_scores = self.bm25.score(query)
+        doc_scores = Tensor.cpu(self.bm25.score(query))
         indices = np.argsort(-doc_scores)[:k]
         bm25_topk = [self.cord_uids[x] for x in indices]
         return bm25_topk
