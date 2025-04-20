@@ -31,5 +31,3 @@ class BM25:
 
     def tokenize_corpus(self):
         return [doc.split(' ') for doc in self.corpus]
-
-   

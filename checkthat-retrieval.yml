@@ -14,9 +14,10 @@ dependencies:
   - pip
   - pip:
     - rank_bm25
+    - bm25_pt
     - sentence-transformers
     - --extra-index-url https://download.pytorch.org/whl/cu118
     - torch==2.6.0+cu118
     - torchaudio==2.6.0+cu118
     - torchvision==0.21.0+cu118
-    
+    - xformers

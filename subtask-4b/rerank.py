@@ -2,9 +2,9 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers import CrossEncoder
 
 class Rerank:
-    def __init__(self, model_name="cross-encoder/ms-marco-MiniLM-L-6-v2"):
+    def __init__(self, device=None, model_name="cross-encoder/ms-marco-MiniLM-L-6-v2"):
         self.model_name = model_name
-        self.cross_encoder = CrossEncoder(self.model_name)
+        self.cross_encoder = CrossEncoder(self.model_name, device=device, trust_remote_code=True)
 
     def rerank_with_crossencoder(self, row, k=10):
         tweet = row['tweet_text']
