@@ -15,9 +15,8 @@ def retrieve(df_collection, df_query, f, device=None, mrr_k = [1, 5, 10]):
   # Retrieval - Create the BM25 corpus (baseline)
   corpus = df_collection[:][['title', 'abstract']].apply(lambda x: f"{x['title']} {x['abstract']}", axis=1).tolist()
   cord_uids = df_collection[:]['cord_uid'].tolist()
-  queries = df_query['tweet_text'].tolist()
 
-  bm25 = BM25_Pytorch(corpus=corpus, cord_uids=cord_uids, queries=queries, device=device)
+  bm25 = BM25_Pytorch(corpus=corpus, cord_uids=cord_uids, device=device)
     
   # Retrieve topk candidates using the BM25 model
   df_query['bm25_topk'] = df_query['tweet_text'].apply(lambda x: bm25.get_top_cord_uids(x))
