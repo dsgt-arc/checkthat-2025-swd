@@ -1,3 +1,4 @@
+import re
 import os
 
 # Evaluate retrieved candidates using MRR@k
@@ -24,3 +25,11 @@ def output_file(experiment_name, output_dir="results"):
     f = open("{}/subtask4b_{}.txt".format(output_dir, experiment_name), "w")
     
     return f
+  
+def preprocess(df):
+  string_columns = df.select_dtypes(include='object').columns
+  df[string_columns] = df[string_columns].apply(lambda x: x.str.lower())
+  for column in string_columns:
+    df[column] = df[column].astype(str).apply(lambda x: re.sub(r'[^a-zA-Z0-9\s]', '', x))
+
+  return df

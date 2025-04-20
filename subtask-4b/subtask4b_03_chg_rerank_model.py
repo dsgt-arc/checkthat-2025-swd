@@ -6,7 +6,7 @@ import torch
 
 from bm25_pytorch import BM25_Pytorch
 from rerank import Rerank
-from util import get_performance_mrr, retrieve_paper, output_file
+from util import get_performance_mrr, retrieve_paper, output_file, preprocess
 
 EXPERIMENT = "03_chg_rerank_model"
 
@@ -55,7 +55,9 @@ def rerank(df_collection, df_query, f, rerank_model, rerank_k, device=None, mrr_
 def main(path_collection_data, path_query_data, output_dir, rerank_model, rerank_k, list_mrr_k):
   
   df_collection = pd.read_pickle(path_collection_data)
+  df_collection = preprocess(df=df_collection)
   df_query = pd.read_csv(path_query_data, sep = '\t')
+  df_query = preprocess(df=df_query)
   
   device = torch.device("cuda" if torch.cuda.is_available() else None)
     
