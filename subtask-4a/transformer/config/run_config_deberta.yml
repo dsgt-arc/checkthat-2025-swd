@@ -1,15 +1,15 @@
 data:
   dir: "C:/Users/leoch/Downloads/CLEF/4a/"
-  train_en: "ct_train_data.tsv"
+  train_en: "ct_train.tsv"
   train_en_embedding: "train_embed"
   fine_tuned_model_path: "fine_tuned_models/"
   val_en: null
 
 train:
   train_test_split: 0.9
-  batch_size: 40
+  batch_size: 64
   seed: 42
-  epochs: 8
+  epochs: 20
   learning_rate: 0.00002
   eps: 0.00000001
   early_stopping_patience: 3
