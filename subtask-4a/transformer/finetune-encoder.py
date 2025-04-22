@@ -1,11 +1,4 @@
-import subprocess
-subprocess.check_call(["python", "-m", "pip", "install", "polars"])
-subprocess.check_call(["python", "-m", "pip", "install", "scikit-learn"])
-subprocess.check_call(["python", "-m", "pip", "install", "torch"])
-
-
 import polars as pl
-#from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import f1_score
 import sys
 from pathlib import Path
@@ -19,6 +12,7 @@ from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 from torch import optim
 import torch
 import ast
+import copy
 
 
 def init_args_parser() -> argparse.Namespace:
@@ -192,82 +186,60 @@ def train(
 ):
     """Train model with logging, early stopping, and configurable accuracy metrics."""
 
-    best_val_loss = float("inf")
+    best_val_metric = float("-inf")
+    best_model_state = None
     patience_counter = 0
 
     for epoch in range(epochs):
         model.train()
         total_train_loss = 0
-        total_train_samples = 0
-
-        # Training loop
         for batch in train_dataloader:
-            optimizer.zero_grad()  # Reset gradients
-
+            optimizer.zero_grad()
             input_ids = batch[0].to(model.device)
             attention_mask = batch[1].to(model.device)
             labels = batch[2].to(model.device)
-
             outputs = model(input_ids, attention_mask)
-            print(f"Model Output Shape: {outputs.shape}, Labels Shape: {labels.shape}")
             loss_value = loss(outputs, labels)
-
             loss_value.backward()
             optimizer.step()
-
             total_train_loss += loss_value.item()
-            total_train_samples += input_ids.size(0)
-
         scheduler.step()
         avg_train_loss = total_train_loss / len(train_dataloader)
 
-        # Validation loop
         model.eval()
         total_val_loss = 0
-        total_val_samples = 0
         all_preds = []
         all_labels = []
-
         with torch.no_grad():
             for batch in val_dataloader:
                 input_ids = batch[0].to(model.device)
                 attention_mask = batch[1].to(model.device)
                 labels = batch[2].to(model.device)
-
                 outputs = model(input_ids, attention_mask)
                 loss_value = loss(outputs, labels)
-
                 total_val_loss += loss_value.item()
-                total_val_samples += input_ids.size(0)
-
-                if metric_fn:  # Store outputs for metric evaluation
+                if metric_fn:
                     all_preds.append(outputs)
                     all_labels.append(labels)
 
         avg_val_loss = total_val_loss / len(val_dataloader)
-
-        # Compute metric if a function is provided
         metric_value = None
         if metric_fn:
             metric_value = metric_fn(torch.cat(all_preds), torch.cat(all_labels))
-            logging.info(
-                f"Epoch {epoch + 1}: Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Metric(F1): {metric_value:.4f}"
-            )
-        else:
-            logging.info(f"Epoch {epoch + 1}: Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
-
-        # Early stopping logic
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
-            patience_counter = 0  # Reset patience
-        else:
-            patience_counter += 1
-            if patience_counter >= early_stopping_patience:
-                logging.info("Early stopping triggered.")
-                break  # Stop training
+            logging.info(f"Epoch {epoch + 1}: Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Metric(F1): {metric_value:.4f}")
+            if metric_value > best_val_metric:
+                best_val_metric = metric_value
+                best_model_state = copy.deepcopy(model.state_dict())
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter >= early_stopping_patience:
+                    logging.info("Early stopping triggered.")
+                    break
 
     logging.info("Training complete.")
-
+    if best_model_state:
+        model.load_state_dict(best_model_state)
     return model
 
 
