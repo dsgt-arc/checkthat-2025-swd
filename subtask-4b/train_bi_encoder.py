@@ -34,6 +34,7 @@ from sentence_transformers.evaluation import InformationRetrievalEvaluator
 from transformers import EarlyStoppingCallback
 from sentence_transformers.trainer import SentenceTransformerTrainer
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
+import random
 
 # Setup logging
 log_dir = "logs"
