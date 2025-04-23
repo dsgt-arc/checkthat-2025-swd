@@ -175,7 +175,7 @@ logging.info("=== Phase 2: Fine-tuning with HARD NEGATIVES ===")
 output_dir_hardneg = f"output/phase2_hardneg_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 
 # Reload best model from Phase 1
-model = SentenceTransformer(output_dir_gold + "/final", device=device)
+model = SentenceTransformer("output/phase1_gold_2025-04-22_16-39-19/final", device=device)
 
 # Sample hard negatives
 logging.info("Generating hard negatives...")
@@ -193,7 +193,7 @@ for row in df_train.itertuples():
         if neg_uid != row.cord_uid:
             neg_doc = df_cord[df_cord['cord_uid'] == neg_uid].iloc[0]
             neg_text = f"{neg_doc['title']} {neg_doc['abstract']}"
-            gold_with_negatives.append(InputExample(texts=[row.tweet_text, neg_text], label=0.0])
+            gold_with_negatives.append(InputExample(texts=[row.tweet_text, neg_text], label=0.0))
             break
 
 # Create dataset
