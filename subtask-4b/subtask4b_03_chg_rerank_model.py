@@ -8,6 +8,7 @@ from rerank import Rerank
 from util import get_performance_mrr, retrieve_paper, output_file, preprocess
 
 EXPERIMENT = "03_chg_rerank_model"
+TEST_SET = True
 
 
 def retrieve(df_collection, df_query, f, device=None, mrr_k = [1, 5, 10]):
@@ -20,14 +21,15 @@ def retrieve(df_collection, df_query, f, device=None, mrr_k = [1, 5, 10]):
   # Retrieve topk candidates using the BM25 model
   df_query['bm25_topk'] = df_query['tweet_text'].apply(lambda x: bm25.get_top_cord_uids(x))
 
-  results = get_performance_mrr(df_query, 
-                                col_gold='cord_uid', 
-                                col_pred='bm25_topk', 
-                                list_k = mrr_k)
-  
-  f.write("EXPERIMENT {} BASELINE (BM25) RESULTS:\n".format(EXPERIMENT))
-  f.write(str(results))
-  f.write("\n\n")
+  if not TEST_SET:
+    results = get_performance_mrr(df_query, 
+                                    col_gold='cord_uid', 
+                                    col_pred='bm25_topk', 
+                                    list_k = mrr_k)
+      
+    f.write("EXPERIMENT {} BASELINE (BM25) RESULTS:\n".format(EXPERIMENT))
+    f.write(str(results))
+    f.write("\n\n")
   
   return df_query
   
@@ -38,15 +40,16 @@ def rerank(df_collection, df_query, f, rerank_model, rerank_k, device=None, mrr_
   df_query['title_abstract'] = df_query['bm25_topk'].apply(lambda row: retrieve_paper(df_collection=df_collection, paper_ids=row))
   df_query['bm25_cross_encoder_topk'] = df_query.apply(lambda row: rerank.rerank_with_crossencoder(row, k=rerank_k), axis=1)
 
-  # Check the result (this will contain the tweet and paper pairs)
-  results = get_performance_mrr(df_query, 
-                                col_gold='cord_uid', 
-                                col_pred='bm25_cross_encoder_topk', 
-                                list_k = mrr_k)
+  if not TEST_SET:
+    # Check the result (this will contain the tweet and paper pairs)
+    results = get_performance_mrr(df_query, 
+                                  col_gold='cord_uid', 
+                                  col_pred='bm25_cross_encoder_topk', 
+                                  list_k = mrr_k)
   
-  f.write("EXPERIMENT {} RERANK RESULTS:\n".format(EXPERIMENT))
-  f.write(str(results))
-  f.write("\n")
+    f.write("EXPERIMENT {} RERANK RESULTS:\n".format(EXPERIMENT))
+    f.write(str(results))
+    f.write("\n")
   
   return df_query
  
@@ -57,8 +60,10 @@ def main(path_collection_data, path_query_data, output_dir, rerank_model, rerank
   df_collection = preprocess(df=df_collection)
   df_query = pd.read_csv(path_query_data, sep = '\t')
   df_query = preprocess(df=df_query)
+
+  print("CUDA", torch.cuda.is_available())
   
-  device = torch.device("cuda" if torch.cuda.is_available() else None)
+  device = torch.device("cuda:0" if torch.cuda.is_available() else None)
   torch._dynamo.config.suppress_errors = True
     
   try:  
@@ -88,6 +93,9 @@ def main(path_collection_data, path_query_data, output_dir, rerank_model, rerank
                       rerank_model=rerank_model,
                       rerank_k=rerank_k,
                       mrr_k =list_mrr_k)
+
+    df_query['preds'] = df_query['bm25_cross_encoder_topk'].apply(lambda x: x[:5])
+    df_query[['post_id', 'preds']].to_csv('predictions_{}_{}.tsv'.format(EXPERIMENT, rerank_model.replace("/", '-')), index=None, sep='\t')
 
   finally:
     results_file.close()
